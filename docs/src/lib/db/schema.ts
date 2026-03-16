@@ -1,0 +1,379 @@
+import {
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  integer,
+  jsonb,
+  boolean,
+  index,
+} from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+
+/**
+ * Search history table - stores all searches performed
+ * More persistent than Redis and allows for analytics
+ */
+export const searches = pgTable(
+  "searches",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull(),
+    query: text("query").notNull(),
+    engine: text("engine").notNull(), // e.g., 'general', 'code', 'academic'
+    engines: text("engines").array(), // Array of specific engines used: ['brave', 'github']
+    resultsCount: integer("results_count").default(0),
+    cachedResultsPath: text("cached_results_path"), // Reference to cached results in Redis or storage
+    metadata: jsonb("metadata").$type<{
+      timeRange?: string;
+      pageNumber?: number;
+      responseTime?: number;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("searches_user_email_idx").on(table.userEmail),
+    queryIdx: index("searches_query_idx").on(table.query),
+    createdAtIdx: index("searches_created_at_idx").on(table.createdAt),
+    engineIdx: index("searches_engine_idx").on(table.engine),
+  }),
+);
+
+/**
+ * Saved/bookmarked search results
+ * Allows users to save specific results for later reference
+ */
+export const savedResults = pgTable(
+  "saved_results",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull(),
+    searchId: integer("search_id").references(() => searches.id, {
+      onDelete: "cascade",
+    }),
+    projectId: integer("project_id").references(() => researchProjects.id, {
+      onDelete: "set null",
+    }),
+    collectionId: integer("collection_id").references(() => collections.id, {
+      onDelete: "set null",
+    }),
+    url: text("url").notNull(),
+    title: text("title").notNull(),
+    content: text("content"),
+    excerpt: text("excerpt"),
+    thumbnail: text("thumbnail"),
+    publishedDate: text("published_date"),
+    engine: text("engine"), // Which engine returned this result
+    type: text("type"), // Type of result (e.g., 'web', 'image', 'video', 'code', 'academic', 'document')
+    score: integer("score"), // Relevance score from search engine
+    tags: text("tags").array().default([]),
+    notes: text("notes"), // User notes about this result
+    isRead: boolean("is_read").default(false),
+    isArchived: boolean("is_archived").default(false),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("saved_results_user_email_idx").on(table.userEmail),
+    urlIdx: index("saved_results_url_idx").on(table.url),
+    searchIdx: index("saved_results_search_idx").on(table.searchId),
+    projectIdx: index("saved_results_project_idx").on(table.projectId),
+    collectionIdx: index("saved_results_collection_idx").on(table.collectionId),
+    createdAtIdx: index("saved_results_created_at_idx").on(table.createdAt),
+  }),
+);
+
+/**
+ * Research projects - organize searches and saved results
+ */
+export const researchProjects = pgTable(
+  "research_projects",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    color: text("color").default("#3b82f6"), // For UI coloring
+    icon: text("icon"), // Icon identifier
+    isArchived: boolean("is_archived").default(false),
+    settings: jsonb("settings").$type<{
+      defaultEngines?: string[];
+      autoSaveResults?: boolean;
+      notificationsEnabled?: boolean;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("research_projects_user_email_idx").on(table.userEmail),
+    createdAtIdx: index("research_projects_created_at_idx").on(table.createdAt),
+    isArchivedIdx: index("research_projects_is_archived_idx").on(
+      table.isArchived,
+    ),
+  }),
+);
+
+/**
+ * Junction table - links searches to projects (many-to-many)
+ */
+export const projectSearches = pgTable(
+  "project_searches",
+  {
+    projectId: integer("project_id")
+      .references(() => researchProjects.id, { onDelete: "cascade" })
+      .notNull(),
+    searchId: integer("search_id")
+      .references(() => searches.id, { onDelete: "cascade" })
+      .notNull(),
+    addedAt: timestamp("added_at").defaultNow().notNull(),
+    notes: text("notes"),
+  },
+  (table) => ({
+    pk: index("project_searches_pk").on(table.projectId, table.searchId),
+  }),
+);
+
+/**
+ * Junction table - links searches to collections (many-to-many)
+ */
+export const collectionSearches = pgTable(
+  "collection_searches",
+  {
+    collectionId: integer("collection_id")
+      .references(() => collections.id, { onDelete: "cascade" })
+      .notNull(),
+    searchId: integer("search_id")
+      .references(() => searches.id, { onDelete: "cascade" })
+      .notNull(),
+    addedAt: timestamp("added_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: index("collection_searches_pk").on(table.collectionId, table.searchId),
+  }),
+);
+
+/**
+ * User preferences and settings
+ * Can be extended for multi-tenant/user accounts later
+ */
+export const userPreferences = pgTable(
+  "user_preferences",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull().unique(),
+    defaultSearchEngine: text("default_search_engine").default("general"),
+    defaultEngines: text("default_engines")
+      .array()
+      .default(["brave", "duckduckgo"]),
+    theme: text("theme").default("system"),
+    resultsPerPage: integer("results_per_page").default(10),
+    cacheResults: boolean("cache_results").default(true),
+    autoSaveSearches: boolean("auto_save_searches").default(true),
+    settings: jsonb("settings").$type<Record<string, any>>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("user_preferences_user_email_idx").on(table.userEmail),
+  }),
+);
+
+/**
+ * Collections - saved topic collections for organizing searches
+ */
+export const collections = pgTable(
+  "collections",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull(),
+    topic: text("topic").notNull(), // The search query/topic
+    description: text("description"), // Optional description
+    searchCount: integer("search_count").default(1), // Number of times this topic was searched
+    engines: text("engines").array().default([]), // Engines used for this topic
+    metadata: jsonb("metadata").$type<{
+      totalResults?: number;
+      lastEngine?: string;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("collections_user_email_idx").on(table.userEmail),
+    topicIdx: index("collections_topic_idx").on(table.topic),
+    createdAtIdx: index("collections_created_at_idx").on(table.createdAt),
+  }),
+);
+
+/**
+ * Collection Trees - multiple trees per user for organizing collections
+ */
+export const collectionTrees = pgTable(
+  "collection_trees",
+  {
+    id: serial("id").primaryKey(),
+    userEmail: text("user_email").notNull(),
+    name: text("name").notNull(),
+    icon: text("icon"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userEmailIdx: index("collection_trees_user_email_idx").on(table.userEmail),
+    createdAtIdx: index("collection_trees_created_at_idx").on(table.createdAt),
+  }),
+);
+
+/**
+ * Tree Nodes - folders or collection references within a tree
+ * parent_id = null means top-level node (implicit root)
+ */
+export const treeNodes = pgTable(
+  "tree_nodes",
+  {
+    id: serial("id").primaryKey(),
+    treeId: integer("tree_id")
+      .references(() => collectionTrees.id, { onDelete: "cascade" })
+      .notNull(),
+    parentId: integer("parent_id").references((): any => treeNodes.id, {
+      onDelete: "cascade",
+    }),
+    nodeType: text("node_type").notNull(), // "folder" | "collection"
+    name: text("name"), // for folders
+    collectionId: integer("collection_id").references(() => collections.id, {
+      onDelete: "cascade",
+    }), // for collection nodes
+    position: integer("position").default(0), // order among siblings
+    isExpanded: boolean("is_expanded").default(true), // for folders
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    treeIdIdx: index("tree_nodes_tree_id_idx").on(table.treeId),
+    parentIdIdx: index("tree_nodes_parent_id_idx").on(table.parentId),
+    collectionIdIdx: index("tree_nodes_collection_id_idx").on(
+      table.collectionId,
+    ),
+    positionIdx: index("tree_nodes_position_idx").on(table.position),
+  }),
+);
+
+/**
+ * Analytics and usage tracking (optional)
+ */
+export const searchAnalytics = pgTable(
+  "search_analytics",
+  {
+    id: serial("id").primaryKey(),
+    searchId: integer("search_id").references(() => searches.id, {
+      onDelete: "set null",
+    }),
+    resultClicked: boolean("result_clicked").default(false),
+    clickedUrl: text("clicked_url"),
+    timeToFirstClick: integer("time_to_first_click"), // milliseconds
+    sessionDuration: integer("session_duration"), // milliseconds
+    userAgent: text("user_agent"),
+    ipAddress: text("ip_address"), // Hashed for privacy
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    createdAtIdx: index("search_analytics_created_at_idx").on(table.createdAt),
+    searchIdx: index("search_analytics_search_idx").on(table.searchId),
+  }),
+);
+
+// ============================================
+// Relations
+// ============================================
+
+export const searchesRelations = relations(searches, ({ one, many }) => ({
+  savedResults: many(savedResults),
+  analytics: one(searchAnalytics, {
+    fields: [searches.id],
+    references: [searchAnalytics.searchId],
+  }),
+}));
+
+export const savedResultsRelations = relations(savedResults, ({ one }) => ({
+  search: one(searches, {
+    fields: [savedResults.searchId],
+    references: [searches.id],
+  }),
+  project: one(researchProjects, {
+    fields: [savedResults.projectId],
+    references: [researchProjects.id],
+  }),
+}));
+
+export const researchProjectsRelations = relations(
+  researchProjects,
+  ({ many }) => ({
+    savedResults: many(savedResults),
+    projectSearches: many(projectSearches),
+  }),
+);
+
+export const collectionsRelations = relations(collections, ({ many }) => ({
+  searches: many(collectionSearches),
+  treeNodes: many(treeNodes),
+}));
+
+export const collectionTreesRelations = relations(
+  collectionTrees,
+  ({ many }) => ({
+    nodes: many(treeNodes),
+  }),
+);
+
+export const treeNodesRelations = relations(treeNodes, ({ one, many }) => ({
+  tree: one(collectionTrees, {
+    fields: [treeNodes.treeId],
+    references: [collectionTrees.id],
+  }),
+  parent: one(treeNodes, {
+    fields: [treeNodes.parentId],
+    references: [treeNodes.id],
+    relationName: "tree_node_hierarchy",
+  }),
+  children: many(treeNodes, {
+    relationName: "tree_node_hierarchy",
+  }),
+  collection: one(collections, {
+    fields: [treeNodes.collectionId],
+    references: [collections.id],
+  }),
+}));
+
+export const projectSearchesRelations = relations(
+  projectSearches,
+  ({ one }) => ({
+    project: one(researchProjects, {
+      fields: [projectSearches.projectId],
+      references: [researchProjects.id],
+    }),
+    search: one(searches, {
+      fields: [projectSearches.searchId],
+      references: [searches.id],
+    }),
+  }),
+);
+
+// ============================================
+// Type exports
+// ============================================
+
+export type Search = typeof searches.$inferSelect;
+export type NewSearch = typeof searches.$inferInsert;
+export type SavedResult = typeof savedResults.$inferSelect;
+export type NewSavedResult = typeof savedResults.$inferInsert;
+export type ResearchProject = typeof researchProjects.$inferSelect;
+export type NewResearchProject = typeof researchProjects.$inferInsert;
+export type ProjectSearch = typeof projectSearches.$inferSelect;
+export type UserPreference = typeof userPreferences.$inferSelect;
+export type NewUserPreference = typeof userPreferences.$inferInsert;
+export type SearchAnalytic = typeof searchAnalytics.$inferSelect;
+export type Collection = typeof collections.$inferSelect;
+export type NewCollection = typeof collections.$inferInsert;
+export type CollectionSearch = typeof collectionSearches.$inferSelect;
+export type CollectionTree = typeof collectionTrees.$inferSelect;
+export type NewCollectionTree = typeof collectionTrees.$inferInsert;
+export type TreeNode = typeof treeNodes.$inferSelect;
+export type NewTreeNode = typeof treeNodes.$inferInsert;

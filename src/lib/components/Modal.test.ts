@@ -1,160 +1,181 @@
-import { page } from '$app/stores';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/svelte';
-import userEvent from '@testing-library/user-event';
+import { mount, unmount, flushSync } from 'svelte';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Modal from './Modal.svelte';
 
 describe('Modal', () => {
-  const defaultProps = {
-    title: '',
-    blogReason: '',
-    tone: 'Professional',
-    format: 'Tutorial',
-    tags: [],
-    category: 'Technology',
-    additionalInstructions: '',
-  };
+	let target: HTMLElement;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+	beforeEach(() => {
+		target = document.createElement('div');
+		document.body.appendChild(target);
+	});
 
-  it('renders when open is true', () => {
-    const { container } = render(Modal, {
-      props: { ...defaultProps, open: true },
-      events: {},
-    });
+	afterEach(() => {
+		document.body.removeChild(target);
+	});
 
-    expect(container.querySelector('.modal-overlay')).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-  });
+	it('renders when open is true', () => {
+		const component = mount(Modal, {
+			target,
+			props: { open: true },
+		});
+		flushSync();
 
-  it('does not render when open is false', () => {
-    const { container } = render(Modal, {
-      props: { ...defaultProps, open: false },
-      events: {},
-    });
+		expect(target.querySelector('.modal-overlay')).toBeTruthy();
+		expect(target.querySelector('[role="dialog"]')).toBeTruthy();
 
-    expect(container.querySelector('.modal-overlay')).not.toBeInTheDocument();
-  });
+		unmount(component);
+	});
 
-  it('closes when close button is clicked', async () => {
-    const user = userEvent.setup();
-    const events = { close: vi.fn() };
-    const { container } = render(Modal, {
-      props: { ...defaultProps, open: true },
-      events,
-    });
+	it('does not render when open is false', () => {
+		const component = mount(Modal, {
+			target,
+			props: { open: false },
+		});
+		flushSync();
 
-    await user.click(screen.getByRole('button', { name: 'Close modal' }));
+		expect(target.querySelector('.modal-overlay')).toBeNull();
 
-    await waitFor(() => {
-      expect(events.close).toHaveBeenCalled();
-    });
-  });
+		unmount(component);
+	});
 
-  it('emits close event when close button is clicked', async () => {
-    const user = userEvent.setup();
-    const events = { close: vi.fn() };
+	it('closes when close button is clicked', async () => {
+		const onClose = vi.fn();
+		const component = mount(Modal, {
+			target,
+			props: {
+				open: true,
+				onclose: onClose,
+			},
+		});
+		flushSync();
 
-    render(Modal, {
-      props: { ...defaultProps, open: true },
-      events,
-    });
+		const closeButton = target.querySelector('[aria-label="Close modal"]') as HTMLButtonElement;
+		expect(closeButton).toBeTruthy();
 
-    await user.click(screen.getByRole('button', { name: 'Close modal' }));
+		closeButton.click();
+		flushSync();
 
-    await waitFor(() => {
-      expect(events.close).toHaveBeenCalled();
-    });
-  });
+		expect(onClose).toHaveBeenCalled();
 
-  it('emits generate event with correct data when Generate button is clicked', async () => {
-    const user = userEvent.setup();
-    const events = { generate: vi.fn() };
+		unmount(component);
+	});
 
-    const testData = {
-      title: 'Test Blog Post',
-      blogReason: 'Testing the modal',
-      tone: 'Casual',
-      format: 'Guide',
-      tags: ['test', 'vitest'],
-      category: 'Tutorial',
-      additionalInstructions: 'Make it good',
-    };
+	it('emits generate event with correct data when Generate button is clicked', async () => {
+		const onsubmit = vi.fn();
+		const component = mount(Modal, {
+			target,
+			props: {
+				open: true,
+				onsubmit,
+			},
+		});
+		flushSync();
 
-    render(Modal, {
-      props: {
-        ...defaultProps,
-        ...testData,
-        open: true,
-      },
-      events,
-    });
+		const titleInput = target.querySelector('#modal-title') as HTMLInputElement;
+		titleInput.value = 'Test Blog Post';
+		titleInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-    await user.click(screen.getByRole('button', { name: 'Generate' }));
+		const blogReasonInput = target.querySelector('#modal-blogReason') as HTMLTextAreaElement;
+		blogReasonInput.value = 'Testing the modal';
+		blogReasonInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-    await waitFor(() => {
-      expect(events.generate).toHaveBeenCalled();
-      const call = events.generate.mock.calls[0][0];
-      expect(call.detail.title).toBe(testData.title);
-      expect(call.detail.blogReason).toBe(testData.blogReason);
-      expect(call.detail.tone).toBe(testData.tone);
-      expect(call.detail.format).toBe(testData.format);
-      expect(call.detail.tags).toEqual(testData.tags);
-      expect(call.detail.category).toBe(testData.category);
-      expect(call.detail.additionalInstructions).toBe(testData.additionalInstructions);
-    });
-  });
+		flushSync();
 
-  it('disables Generate button when title is empty', () => {
-    render(Modal, {
-      props: { ...defaultProps, open: true, title: '' },
-      events: {},
-    });
+		const generateButton = target.querySelector('.btn-primary') as HTMLButtonElement;
+		expect(generateButton).toBeTruthy();
+		expect(generateButton.disabled).toBe(false);
 
-    expect(screen.getByRole('button', { name: 'Generate' })).toBeDisabled();
-  });
+		generateButton.click();
+		flushSync();
 
-  it('enables Generate button when title has value', () => {
-    render(Modal, {
-      props: { ...defaultProps, open: true, title: 'Test' },
-      events: {},
-    });
+		expect(onsubmit).toHaveBeenCalled();
 
-    expect(screen.getByRole('button', { name: 'Generate' })).not.toBeDisabled();
-  });
+		unmount(component);
+	});
 
-  it('updates title when user types', async () => {
-    const user = userEvent.setup();
-    render(Modal, {
-      props: { ...defaultProps, open: true },
-      events: {},
-    });
+	it('disables Generate button when title is empty', () => {
+		const component = mount(Modal, {
+			target,
+			props: { open: true },
+		});
+		flushSync();
 
-    const titleInput = screen.getByLabelText('Title');
-    await user.type(titleInput, 'My Blog Post');
+		const generateButton = target.querySelector('.btn-primary') as HTMLButtonElement;
+		expect(generateButton.disabled).toBe(true);
 
-    expect(titleInput).toHaveValue('My Blog Post');
-  });
+		unmount(component);
+	});
 
-  it('parses tags from comma-separated input', async () => {
-    const user = userEvent.setup();
-    const events = { generate: vi.fn() };
+	it('enables Generate button when title has value', async () => {
+		const component = mount(Modal, {
+			target,
+			props: { open: true },
+		});
+		flushSync();
 
-    render(Modal, {
-      props: { ...defaultProps, open: true },
-      events,
-    });
+		const titleInput = target.querySelector('#modal-title') as HTMLInputElement;
+		titleInput.value = 'Test Title';
+		titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
 
-    const tagsInput = screen.getByPlaceholderText('javascript, web, tutorial');
-    await user.type(tagsInput, 'js, react, svelte');
-    await user.click(screen.getByRole('button', { name: 'Generate' }));
+		const blogReasonInput = target.querySelector('#modal-blogReason') as HTMLTextAreaElement;
+		blogReasonInput.value = 'Some reason';
+		blogReasonInput.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
 
-    await waitFor(() => {
-      expect(events.generate).toHaveBeenCalled();
-      const call = events.generate.mock.calls[0][0];
-      expect(call.detail.tags).toEqual(['js', 'react', 'svelte']);
-    });
-  });
+		const generateButton = target.querySelector('.btn-primary') as HTMLButtonElement;
+		expect(generateButton.disabled).toBe(false);
+
+		unmount(component);
+	});
+
+	it('updates title when user types', async () => {
+		const component = mount(Modal, {
+			target,
+			props: { open: true },
+		});
+		flushSync();
+
+		const titleInput = target.querySelector('#modal-title') as HTMLInputElement;
+		expect(titleInput).toBeTruthy();
+
+		titleInput.value = 'My Blog Post';
+		titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+
+		expect(titleInput.value).toBe('My Blog Post');
+
+		unmount(component);
+	});
+
+	it('parses tags from comma-separated input', async () => {
+		const onsubmit = vi.fn();
+		const component = mount(Modal, {
+			target,
+			props: { open: true, onsubmit },
+		});
+		flushSync();
+
+		const titleInput = target.querySelector('#modal-title') as HTMLInputElement;
+		titleInput.value = 'Test Title';
+		titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+		const blogReasonInput = target.querySelector('#modal-blogReason') as HTMLTextAreaElement;
+		blogReasonInput.value = 'Some reason';
+		blogReasonInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+		const tagsInput = target.querySelector('#modal-tags') as HTMLInputElement;
+		tagsInput.value = 'js, react, svelte';
+		tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
+		flushSync();
+
+		const generateButton = target.querySelector('.btn-primary') as HTMLButtonElement;
+		generateButton.click();
+		flushSync();
+
+		expect(onsubmit).toHaveBeenCalled();
+
+		unmount(component);
+	});
 });

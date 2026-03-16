@@ -1,5 +1,3 @@
-import '../app.css';
-
 export const load = async () => {
 	return {
 		title: 'URL2.blog',

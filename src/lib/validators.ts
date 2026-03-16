@@ -5,7 +5,7 @@ export const urlSchema = z.object({
 });
 
 export const blogGenerationSchema = z.object({
-  url: z.string().url(),
+  savedUrlId: z.string().min(1, 'Saved URL ID is required'),
   title: z.string().min(1, 'Title is required'),
   blogReason: z.string().min(1, 'Blog reason is required'),
   tone: z.string().min(1, 'Tone is required'),
