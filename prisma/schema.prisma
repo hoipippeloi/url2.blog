@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SavedUrl {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  blogPosts BlogPost[]
+}
+
+model BlogPost {
+  id                   String   @id @default(cuid())
+  savedUrlId           String
+  savedUrl             SavedUrl @relation(fields: [savedUrlId], references: [id], onDelete: Cascade)
+  title                String
+  content              String   @db.Text
+  frontmatter          Json
+  tone                 String
+  format               String
+  category             String
+  tags                 String[]
+  blogReason           String   @db.Text
+  additionalInstructions String?  @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.json"
+    }
+  ],
+  "extends": "./.svelte-kit/tsconfig.json"
+}
