@@ -1,39 +1,15 @@
 <script lang="ts">
+	import '../app.css';
 	import Modal from '$lib/components/Modal.svelte';
 	import BlogEditor from '$lib/components/BlogEditor.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import { CircleAlert, Check, Loader2, Clipboard } from '@lucide/svelte';
-
-	interface SavedUrl {
-		id: string;
-		url: string;
-		createdAt: Date;
-		hasBlogPost: boolean;
-		latestBlogPost?: {
-			id: string;
-			title: string;
-			content: string;
-		};
-	}
-
-	interface PageData {
-		savedUrls: SavedUrl[];
-	}
-
-	let { data }: { data: PageData } = $props();
+	import { ClipboardList } from '@lucide/svelte';
 
 	// Modal state
 	let modalOpen = $state(false);
 	let currentUrlId = $state<string | null>(null);
 	let currentUrl = $state<string>('');
 	let isGenerating = $state(false);
-
-	// Loading states
-	let isSavingUrl = $state(false);
-	let isSavingBlogPost = $state(false);
-	
-	// Form state
-	let urlInput = $state('');
 
 	// Editor state
 	let showEditor = $state(false);
@@ -45,54 +21,6 @@
 	// UI state
 	let errorMessage = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
-	let isPasting = $state(false);
-
-	$effect(() => {
-		async function autoPasteUrl() {
-			try {
-				const text = await navigator.clipboard.readText();
-				if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
-					urlInput = text;
-				}
-			} catch (err) {
-				// Clipboard access may be denied or not available
-				console.log('Could not access clipboard:', err);
-			}
-		}
-		autoPasteUrl();
-	});
-
-	async function handlePaste() {
-		try {
-			isPasting = true;
-			const text = await navigator.clipboard.readText();
-			urlInput = text;
-		} catch (err) {
-			console.error('Failed to read clipboard:', err);
-		} finally {
-			isPasting = false;
-		}
-	}
-
-	// Parse SvelteKit's serialized form data with indexed references
-	function parseFormDataResponse<T>(result: { type: string; status: number; data: string | T }): T | null {
-		let data = result.data;
-		if (typeof data === 'string') {
-			const parsed = JSON.parse(data);
-			// SvelteKit serializes as [meta, type, obj, values...]
-			// where obj values are indices pointing to positions in the array
-			if (Array.isArray(parsed) && parsed.length >= 3 && typeof parsed[2] === 'object' && parsed[2] !== null) {
-				const obj = parsed[2] as Record<string, number>;
-				const resolved: Record<string, unknown> = {};
-				for (const [key, index] of Object.entries(obj)) {
-					resolved[key] = parsed[index as number];
-				}
-				return resolved as T;
-			}
-			return parsed as T;
-		}
-		return data;
-	}
 
 	$effect(() => {
 		if (errorMessage) {
@@ -148,16 +76,14 @@
 			});
 			const result = await response.json();
 
-			const data = parseFormDataResponse<{ id?: string; url?: string; exists?: boolean; error?: string }>(result);
-
-			if (result.type === 'success' && data) {
-				if (data.exists) {
+			if (result.type === 'success' && result.data) {
+				if (result.data.exists) {
 					errorMessage = 'This URL already exists in your collection';
-				} else if (data.id && data.url) {
-					openGenerateModal(data.id, data.url);
+				} else if (result.data.id && result.data.url) {
+					openGenerateModal(result.data.id, result.data.url);
 				}
-			} else if (result.status >= 400 && data?.error) {
-				errorMessage = data.error;
+			} else if (result.status >= 400 && result.data?.error) {
+				errorMessage = result.data.error;
 			}
 		} catch (err) {
 			errorMessage = 'Failed to save URL. Please try again.';
@@ -175,19 +101,17 @@
 			});
 			const result = await response.json();
 
-			const data = parseFormDataResponse<{ id?: string; title?: string; content?: string; error?: string }>(result);
-
 			isGenerating = false;
 
-			if (result.type === 'success' && data) {
+			if (result.type === 'success' && result.data) {
 				openEditor(
-					data.id || '',
-					data.title || '',
-					data.content || '',
+					result.data.id,
+					result.data.title,
+					result.data.content,
 					currentUrl
 				);
-			} else if (result.status >= 400 && data?.error) {
-				errorMessage = data.error;
+			} else if (result.status >= 400 && result.data?.error) {
+				errorMessage = result.data.error;
 			}
 		} catch (err) {
 			isGenerating = false;
@@ -200,13 +124,28 @@
 	<title>URL2.blog - Transform URLs into Blog Posts</title>
 </svelte:head>
 
-<Header variant="home" />
+<Header />
+<main class="pt-16 min-h-screen flex flex-col items-center p-4">
+	<div class="flex flex-col items-center w-full max-w-2xl" style="margin-top: 20vh;">
 
-<main class="min-h-screen flex flex-col items-center p-4">
-	<div class="flex-1 flex flex-col items-center w-full max-w-2xl">
 		{#if errorMessage}
 			<div class="alert alert-error" role="alert">
-				<CircleAlert class="alert-icon" size={20} />
+				<svg
+					class="alert-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<circle cx="12" cy="12" r="10" />
+					<line x1="12" y1="8" x2="12" y2="12" />
+					<line x1="12" y1="16" x2="12.01" y2="16" />
+				</svg>
 				<div class="alert-content">
 					<p class="alert-title">Error</p>
 					<p class="alert-message">{errorMessage}</p>
@@ -219,7 +158,20 @@
 
 		{#if successMessage}
 			<div class="alert alert-success" role="alert">
-				<Check class="alert-icon" size={20} />
+				<svg
+					class="alert-icon"
+					xmlns="http://www.w3.org/2000/svg"
+					width="20"
+					height="20"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<polyline points="20 6 9 17 4 12" />
+				</svg>
 				<div class="alert-content">
 					<p class="alert-message">{successMessage}</p>
 				</div>
@@ -264,14 +216,12 @@
 					content={editorContent}
 					title={editorTitle}
 					savedUrlId={currentUrlId}
-					isSaving={isSavingBlogPost}
 					onSave={async (data) => {
 						const formData = new FormData();
 						formData.append('blogPostId', editorBlogPostId || '');
 						formData.append('title', data.title);
 						formData.append('content', data.content);
 
-						isSavingBlogPost = true;
 						try {
 							const response = await fetch('?/saveBlogPost', {
 								method: 'POST',
@@ -287,73 +237,42 @@
 							}
 						} catch (err) {
 							errorMessage = 'Failed to save changes';
-						} finally {
-							isSavingBlogPost = false;
 						}
 					}}
 					onCancel={closeEditor}
 				/>
 			</div>
 		{:else}
-			<section class="container">
+			<section class="container text-center">
 				<form method="POST" action="?/saveUrl" class="space-y-4" onsubmit={(e) => {
 					e.preventDefault();
 					const formData = new FormData(e.currentTarget);
-					isSavingUrl = true;
-					handleSaveUrl(formData).finally(() => {
-						isSavingUrl = false;
-					});
+					handleSaveUrl(formData);
 				}}>
-					<div class="input-group text-center" style="margin-top: 25vh;">
+					<div class="input-group">
 						<label class="input-label" for="url-input">
 							Paste your URL
 						</label>
-						<div class="input-wrapper">
-							<input
-								id="url-input"
-								type="url"
-								name="url"
-								class="input-field"
-								placeholder="https://example.com"
-								autocomplete="off"
-								required
-								disabled={isSavingUrl}
-								bind:value={urlInput}
-							/>
-							<button
-								type="button"
-								class="paste-button"
-								onclick={handlePaste}
-								disabled={isSavingUrl || isPasting}
-								title="Paste from clipboard"
-							>
-								{#if isPasting}
-									<Loader2 size={16} class="spinner-icon" />
-								{:else}
-									<Clipboard size={16} />
-								{/if}
-							</button>
-						</div>
-						<div class="input-hint">
-							Paste any URL you want to write about
-						</div>
+						<input
+							id="url-input"
+							type="url"
+							name="url"
+							class="input-field"
+							placeholder="https://example.com"
+							autocomplete="off"
+							required
+						/>
+
 					</div>
 
-					<div class="center-button">
-						<button type="submit" class="btn btn-primary" disabled={isSavingUrl}>
-							{#if isSavingUrl}
-								<Loader2 size={16} class="spinner-icon" />
-								Saving...
-							{:else}
-								Save
-							{/if}
-						</button>
-					</div>
+					<button type="submit" class="btn btn-primary mt-2">
+						Save
+					</button>
 				</form>
 
-				<div class="center-button mt-8">
-					<a href="/urls" class="text-[var(--accent)] hover:underline">
-						View saved URLs →
+				<div class="flex justify-center mt-4">
+					<a href="/urls" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors">
+						<ClipboardList size={24} />
 					</a>
 				</div>
 			</section>
@@ -389,10 +308,5 @@
 	.editor-header-bar {
 		border-bottom: 1px solid var(--border);
 		padding-bottom: 1rem;
-	}
-
-	.center-button {
-		display: flex;
-		justify-content: center;
 	}
 </style>

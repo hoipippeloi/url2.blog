@@ -4,11 +4,6 @@ import { prisma } from '$lib/server/database';
 import { llmClient } from '$lib/llm-gateway';
 import { fetchMarkdown } from '$lib/defuddle';
 
-export const load = async () => {
-	// Home page doesn't need to load saved URLs
-	return {};
-};
-
 export const actions = {
 	saveUrl: async ({ request }: { request: Request }) => {
 		const formData = await request.formData();

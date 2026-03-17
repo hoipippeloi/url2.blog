@@ -11,6 +11,11 @@ const config = {
 			'$lib/*': 'src/lib/*',
 		},
 	},
+	vite: {
+		ssr: {
+			noExternal: ['@lucide/svelte']
+		}
+	}
 };
 
 export default config;

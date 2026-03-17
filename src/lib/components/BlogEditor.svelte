@@ -1,11 +1,8 @@
 <script lang="ts">
-	import { Loader2 } from '@lucide/svelte';
-
 	interface Props {
 		content?: string;
 		title?: string;
 		savedUrlId?: string | null;
-		isSaving?: boolean;
 		onSave?: (data: { content: string; title: string }) => void;
 		onCancel?: () => void;
 	}
@@ -14,7 +11,6 @@
 		content = '',
 		title = '',
 		savedUrlId = null,
-		isSaving = false,
 		onSave,
 		onCancel,
 	}: Props = $props();
@@ -113,20 +109,15 @@
 	</div>
 
 	<div class="editor-footer">
-		<button class="btn btn-outline" onclick={handleCancel} disabled={isSaving}>
+		<button class="btn btn-outline" onclick={handleCancel}>
 			Cancel
 		</button>
 		<button
 			class="btn btn-primary"
-			disabled={!formTitle.trim() || !formContent.trim() || isSaving}
+			disabled={!formTitle.trim() || !formContent.trim()}
 			onclick={handleSave}
 		>
-			{#if isSaving}
-				<Loader2 size={16} class="spinner-icon" />
-				Saving...
-			{:else}
-				Save Changes
-			{/if}
+			Save Changes
 		</button>
 	</div>
 </div>

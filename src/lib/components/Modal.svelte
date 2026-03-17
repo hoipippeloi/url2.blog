@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { X, Loader2 } from '@lucide/svelte';
-
 	interface Props {
 		open?: boolean;
 		savedUrlId?: string | null;
@@ -73,7 +71,20 @@
 					onclick={handleClose}
 					disabled={isSubmitting}
 				>
-					<X size={16} />
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="16"
+						height="16"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<line x1="18" y1="6" x2="6" y2="18" />
+						<line x1="6" y1="6" x2="18" y2="18" />
+					</svg>
 				</button>
 			</div>
 
@@ -193,12 +204,7 @@
 						class="btn btn-primary"
 						disabled={!canGenerate || isSubmitting}
 					>
-						{#if isSubmitting}
-							<Loader2 size={16} class="spinner-icon" />
-							Generating...
-						{:else}
-							Generate
-						{/if}
+						{isSubmitting ? 'Generating...' : 'Generate'}
 					</button>
 				</div>
 			</form>

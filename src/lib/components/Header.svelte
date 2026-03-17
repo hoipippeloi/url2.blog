@@ -1,22 +1,11 @@
 <script lang="ts">
-	import { SquareLibrary, ArrowLeft } from '@lucide/svelte';
-
-	interface Props {
-		variant?: 'home' | 'urls';
-	}
-
-	let { variant = 'home' }: Props = $props();
+	import { SquareLibrary } from '@lucide/svelte';
 </script>
 
-<header class="w-full p-4 border-b border-[var(--border)]">
-	{#if variant === 'home'}
-		<a href="/urls" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors" title="View saved URLs">
-			<SquareLibrary size={24} />
+<header class="fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)]" style="background: var(--bg);">
+	<div class="max-w-[2560px] mx-auto flex items-center" style="padding: 1rem;">
+		<a href="/" class="hover:opacity-80 transition-opacity">
+			<SquareLibrary size={24} class="text-[var(--fg)]" />
 		</a>
-	{:else}
-		<a href="/" class="flex items-center gap-3 text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors">
-			<ArrowLeft size={24} />
-			<span class="font-display font-semibold">Back to Home</span>
-		</a>
-	{/if}
+	</div>
 </header>

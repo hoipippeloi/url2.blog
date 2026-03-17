@@ -2,7 +2,6 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import BlogEditor from '$lib/components/BlogEditor.svelte';
 	import Header from '$lib/components/Header.svelte';
-	import { CircleAlert, Check } from '@lucide/svelte';
 
 	interface SavedUrl {
 		id: string;
@@ -22,23 +21,19 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Modal state
 	let modalOpen = $state(false);
 	let currentUrlId = $state<string | null>(null);
 	let currentUrl = $state<string>('');
 	let isGenerating = $state(false);
-	
-	// Loading states
+
 	let isSavingBlogPost = $state(false);
-	
-	// Editor state
+
 	let showEditor = $state(false);
 	let editorContent = $state('');
 	let editorTitle = $state('');
 	let editorBlogPostId = $state<string | null>(null);
-	let editorSavedUrl = $state<string>('');
-	
-	// UI state
+	let editorSavedUrl = $state('');
+
 	let errorMessage = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
 
@@ -109,18 +104,18 @@
 	async function handleGenerateBlog(formData: FormData) {
 		isGenerating = true;
 		closeModal();
-		
+
 		try {
 			const response = await fetch('?/generateBlog', {
 				method: 'POST',
 				body: formData,
 			});
 			const result = await response.json();
-			
+
 			const data = parseFormDataResponse<{ id?: string; title?: string; content?: string; error?: string }>(result);
-			
+
 			isGenerating = false;
-			
+
 			if (result.type === 'success' && data) {
 				openEditor(
 					data.id || '',
@@ -142,178 +137,176 @@
 	<title>Saved URLs - URL2.blog</title>
 </svelte:head>
 
-<Header variant="urls" />
+<Header />
 
-<main class="min-h-screen flex flex-col items-center p-4">
-	<div class="flex-1 w-full max-w-4xl mx-auto">
-		{#if errorMessage}
-			<div class="alert alert-error mb-4" role="alert">
-				<CircleAlert class="alert-icon" size={20} />
-				<div class="alert-content">
-					<p class="alert-title">Error</p>
-					<p class="alert-message">{errorMessage}</p>
-				</div>
-				<button class="btn btn-outline btn-sm" onclick={() => errorMessage = null}>
-					Dismiss
-				</button>
+{#if errorMessage}
+	<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50" role="alert">
+		<div class="glass-panel bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500">
+				<circle cx="12" cy="12" r="10"/>
+				<line x1="12" y1="8" x2="12" y2="12"/>
+				<line x1="12" y1="16" x2="12.01" y2="16"/>
+			</svg>
+			<p class="text-red-700 font-medium">{errorMessage}</p>
+			<button class="text-red-500 hover:text-red-700 ml-2" onclick={() => errorMessage = null}>
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="18" y1="6" x2="6" y2="18"/>
+					<line x1="6" y1="6" x2="18" y2="18"/>
+				</svg>
+			</button>
+		</div>
+	</div>
+{/if}
+
+{#if successMessage}
+	<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50" role="alert">
+		<div class="glass-panel bg-green-50 border border-green-200 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500">
+				<polyline points="20 6 9 17 4 12"/>
+			</svg>
+			<p class="text-green-700 font-medium">{successMessage}</p>
+		</div>
+	</div>
+{/if}
+
+{#if isGenerating}
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+		<div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm mx-4">
+			<h3 class="text-xl font-semibold text-zinc-900 mb-4">Generating your blog post...</h3>
+			<div class="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
+				<div class="h-full bg-zinc-900 animate-pulse" style="width: 100%;"></div>
 			</div>
-		{/if}
+			<p class="text-sm text-zinc-500 mt-4">
+				This may take up to 30 seconds
+			</p>
+		</div>
+	</div>
+{/if}
 
-		{#if successMessage}
-			<div class="alert alert-success mb-4" role="alert">
-				<Check class="alert-icon" size={20} />
-				<div class="alert-content">
-					<p class="alert-message">{successMessage}</p>
-				</div>
-			</div>
-		{/if}
-
-		{#if isGenerating}
-			<div class="modal-overlay open">
-				<div class="modal">
-					<div class="modal-body">
-						<div class="space-y-4">
-							<h3 class="modal-title">Generating your blog post...</h3>
-							<div class="progress-bar-container">
-								<div class="progress-track">
-									<div
-										class="progress-fill"
-										style="width: 100%; animation: progress-indeterminate 1.5s infinite;"
-									></div>
-								</div>
-							</div>
-							<p class="text-center text-[var(--fg-muted)]">
-								This may take up to 30 seconds
-							</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		{/if}
-
-		{#if showEditor && editorBlogPostId}
-			<div class="editor-wrapper mb-8">
-				<div class="editor-header-bar flex items-center justify-between mb-4">
+{#if showEditor && editorBlogPostId}
+	<div class="pt-16 min-h-screen bg-zinc-50">
+		<div class="max-w-4xl mx-auto p-6">
+			<div class="bg-white rounded-xl shadow-sm border border-zinc-200 mb-4">
+				<div class="flex items-center justify-between p-4 border-b border-zinc-200">
 					<div>
-						<h2 class="text-xl font-bold">Edit Blog Post</h2>
-						<p class="text-sm text-[var(--fg-muted)]">{editorSavedUrl}</p>
+						<h2 class="text-xl font-semibold text-zinc-900">Edit Blog Post</h2>
+						<p class="text-sm text-zinc-500">{editorSavedUrl}</p>
 					</div>
-					<button class="btn btn-outline btn-sm" onclick={closeEditor}>
+					<button class="text-sm text-zinc-500 hover:text-zinc-900 transition-colors" onclick={closeEditor}>
 						Close Editor
 					</button>
 				</div>
-				<BlogEditor
-					content={editorContent}
-					title={editorTitle}
-					savedUrlId={currentUrlId}
-					isSaving={isSavingBlogPost}
-					onSave={async (data) => {
-						const formData = new FormData();
-						formData.append('blogPostId', editorBlogPostId || '');
-						formData.append('title', data.title);
-						formData.append('content', data.content);
-						
-						isSavingBlogPost = true;
-						try {
-							const response = await fetch('?/saveBlogPost', {
-								method: 'POST',
-								body: formData,
-							});
-							
-							if (response.ok) {
-								successMessage = 'Blog post saved successfully!';
-								editorContent = data.content;
-								editorTitle = data.title;
-							} else {
-								errorMessage = 'Failed to save changes';
-							}
-						} catch (err) {
-							errorMessage = 'Failed to save changes';
-						} finally {
-							isSavingBlogPost = false;
-						}
-					}}
-					onCancel={closeEditor}
-				/>
 			</div>
-		{:else}
-			<section class="mb-8">
-				<h1 class="text-3xl font-display font-bold mb-2">Saved URLs</h1>
-				<p class="text-[var(--fg-muted)] mb-6">
-					Manage your saved URLs and generated blog posts
-				</p>
-			</section>
+			<BlogEditor
+				content={editorContent}
+				title={editorTitle}
+				savedUrlId={currentUrlId}
+				isSaving={isSavingBlogPost}
+				onSave={async (data) => {
+					const formData = new FormData();
+					formData.append('blogPostId', editorBlogPostId || '');
+					formData.append('title', data.title);
+					formData.append('content', data.content);
 
-			{#if data.savedUrls.length > 0}
-				<section class="space-y-3">
-					{#each data.savedUrls as savedUrl}
-						<div class="card">
-							<div class="card-body">
-								<div class="flex items-center justify-between">
-									<div class="space-y-1 flex-1 min-w-0">
-										<h3 class="card-title truncate">{savedUrl.url}</h3>
-										<p class="card-text">
-											{#if savedUrl.hasBlogPost}
-												<span class="badge badge-success">Generated</span>
-											{:else}
-												<span class="badge badge-outline">Pending</span>
-											{/if}
-										</p>
-									</div>
-									<div class="flex gap-2 ml-4">
-										{#if savedUrl.hasBlogPost && savedUrl.latestBlogPost}
-											<button
-												class="btn btn-primary btn-sm"
-												onclick={() => openEditor(
-													savedUrl.latestBlogPost!.id,
-													savedUrl.latestBlogPost!.title,
-													savedUrl.latestBlogPost!.content,
-													savedUrl.url
-												)}
-											>
-												Edit
-											</button>
-										{/if}
-										<button
-											class="btn btn-outline btn-sm"
-											onclick={() => openGenerateModal(savedUrl.id, savedUrl.url)}
-										>
-											{savedUrl.hasBlogPost ? 'Regenerate' : 'Generate'}
-										</button>
-									</div>
-								</div>
-							</div>
-						</div>
-					{/each}
-				</section>
-			{:else}
-				<div class="text-center py-12">
-					<p class="text-[var(--fg-muted)] mb-4">No saved URLs yet</p>
-					<a href="/" class="btn btn-primary">
-						Save your first URL
-					</a>
-				</div>
-			{/if}
-		{/if}
+					isSavingBlogPost = true;
+					try {
+						const response = await fetch('?/saveBlogPost', {
+							method: 'POST',
+							body: formData,
+						});
+
+						if (response.ok) {
+							successMessage = 'Blog post saved successfully!';
+							editorContent = data.content;
+							editorTitle = data.title;
+						} else {
+							errorMessage = 'Failed to save changes';
+						}
+					} catch (err) {
+						errorMessage = 'Failed to save changes';
+					} finally {
+						isSavingBlogPost = false;
+					}
+				}}
+				onCancel={closeEditor}
+			/>
+		</div>
 	</div>
+{:else}
+	<main class="pt-14">
+		<section>
+			<div class="max-w-[2560px] mx-auto w-full">
+				{#if data.savedUrls.length > 0}
+					<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 border-t border-x border-zinc-200">
+						{#each data.savedUrls as savedUrl}
+							<article class="p-6 border-r border-b border-zinc-200 hover:bg-zinc-50 transition-colors duration-200 group flex flex-col">
+								<span class="text-xs font-medium text-zinc-400 uppercase tracking-widest">
+									{new Date(savedUrl.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+								</span>
+								<h2 class="text-base font-semibold tracking-tight mt-2 mb-2 group-hover:text-zinc-600 transition-colors line-clamp-1">
+									{savedUrl.url.replace(/^https?:\/\//, '').split('/')[0]}
+								</h2>
+								{#if savedUrl.hasBlogPost}
+									<p class="text-zinc-500 text-xs font-light leading-relaxed line-clamp-2 flex-grow">
+										{savedUrl.latestBlogPost?.title || 'Blog post generated'}
+									</p>
+								{/if}
+								<div class="mt-4 flex items-center gap-2">
+									{#if savedUrl.hasBlogPost && savedUrl.latestBlogPost}
+										<button
+											class="text-xs font-medium text-zinc-400 group-hover:text-zinc-900 transition-colors flex items-center gap-1"
+											onclick={() => openEditor(
+												savedUrl.latestBlogPost!.id,
+												savedUrl.latestBlogPost!.title,
+												savedUrl.latestBlogPost!.content,
+												savedUrl.url
+											)}
+										>
+											<span>Edit</span>
+											<span class="iconify" data-icon="mdi:pencil"></span>
+										</button>
+										<span class="text-zinc-300">|</span>
+									{/if}
+									<button
+										class="text-xs font-medium text-zinc-400 group-hover:text-zinc-900 transition-colors flex items-center gap-1"
+										onclick={() => openGenerateModal(savedUrl.id, savedUrl.url)}
+									>
+										<span>{savedUrl.hasBlogPost ? 'Regenerate' : 'Generate'}</span>
+										<span class="iconify" data-icon="mdi:refresh"></span>
+									</button>
+								</div>
+							</article>
+						{/each}
+					</div>
+				{:else}
+					<div class="flex-1 flex items-center justify-center">
+						<div class="text-center py-12 px-4">
+							<div class="w-16 h-16 bg-zinc-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
+								<span class="iconify text-3xl text-zinc-400" data-icon="mdi:link-variant"></span>
+							</div>
+							<p class="text-zinc-500 mb-4">No saved URLs yet</p>
+							<a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600 transition-colors">
+								<span>Save your first URL</span>
+								<span class="iconify" data-icon="mdi:arrow-right"></span>
+							</a>
+						</div>
+					</div>
+				{/if}
+			</div>
+		</section>
+	</main>
+{/if}
 
-	<Modal
-		open={modalOpen}
-		savedUrlId={currentUrlId}
-		onclose={closeModal}
-		onsubmit={handleGenerateBlog}
-	/>
-</main>
+<Modal
+	open={modalOpen}
+	savedUrlId={currentUrlId}
+	onclose={closeModal}
+	onsubmit={handleGenerateBlog}
+/>
 
 <style>
-	.editor-wrapper {
-		background: var(--bg);
-		border-radius: var(--radius-lg);
-		padding: 1.5rem;
-	}
-
-	.editor-header-bar {
-		border-bottom: 1px solid var(--border);
-		padding-bottom: 1rem;
+	.glass-panel {
+		background: rgba(255, 255, 255, 0.8);
+		backdrop-filter: blur(12px);
 	}
 </style>
