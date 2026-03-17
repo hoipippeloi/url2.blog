@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "prisma migrate deploy && node build",
+    "postinstall": "prisma generate",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
