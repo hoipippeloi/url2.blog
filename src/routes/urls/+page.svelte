@@ -2,6 +2,10 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import BlogEditor from '$lib/components/BlogEditor.svelte';
 	import Header from '$lib/components/Header.svelte';
+	import Alert from '$lib/components/Alert.svelte';
+	import UrlCard from '$lib/components/UrlCard.svelte';
+	import GeneratingModal from '$lib/components/GeneratingModal.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 
 	interface SavedUrl {
 		id: string;
@@ -174,48 +178,14 @@
 <Header />
 
 {#if errorMessage}
-	<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50" role="alert">
-		<div class="glass-panel bg-red-50 border border-red-200 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500">
-				<circle cx="12" cy="12" r="10"/>
-				<line x1="12" y1="8" x2="12" y2="12"/>
-				<line x1="12" y1="16" x2="12.01" y2="16"/>
-			</svg>
-			<p class="text-red-700 font-medium">{errorMessage}</p>
-			<button class="text-red-500 hover:text-red-700 ml-2" onclick={() => errorMessage = null}>
-				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="18" y1="6" x2="6" y2="18"/>
-					<line x1="6" y1="6" x2="18" y2="18"/>
-				</svg>
-			</button>
-		</div>
-	</div>
+	<Alert type="error" message={errorMessage} dismissible onDismiss={() => errorMessage = null} />
 {/if}
 
 {#if successMessage}
-	<div class="fixed top-20 left-1/2 -translate-x-1/2 z-50" role="alert">
-		<div class="glass-panel bg-green-50 border border-green-200 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500">
-				<polyline points="20 6 9 17 4 12"/>
-			</svg>
-			<p class="text-green-700 font-medium">{successMessage}</p>
-		</div>
-	</div>
+	<Alert type="success" message={successMessage} dismissible onDismiss={() => successMessage = null} />
 {/if}
 
-{#if isGenerating}
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-		<div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm mx-4">
-			<h3 class="text-xl font-semibold text-zinc-900 mb-4">Generating your blog post...</h3>
-			<div class="w-full bg-zinc-100 rounded-full h-2 overflow-hidden">
-				<div class="h-full bg-zinc-900 animate-pulse" style="width: 100%;"></div>
-			</div>
-			<p class="text-sm text-zinc-500 mt-4">
-				This may take up to 30 seconds
-			</p>
-		</div>
-	</div>
-{/if}
+<GeneratingModal open={isGenerating} />
 
 {#if showEditor && editorBlogPostId}
 	<div class="pt-16 min-h-screen bg-zinc-50">
@@ -235,7 +205,6 @@
 				content={editorContent}
 				title={editorTitle}
 				savedUrlId={currentUrlId}
-				isSaving={isSavingBlogPost}
 				onSave={async (data) => {
 					const formData = new FormData();
 					formData.append('blogPostId', editorBlogPostId || '');
@@ -273,86 +242,22 @@
 				{#if data.savedUrls.length > 0}
 					<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 border-t border-x border-zinc-200">
 						{#each data.savedUrls as savedUrl}
-							<article class="p-6 border-r border-b border-zinc-200 hover:bg-zinc-50 transition-colors duration-200 group flex flex-col cursor-pointer relative">
-								<button
-									class="absolute top-4 right-4 p-1.5 rounded-md hover:bg-red-50 transition-colors cursor-pointer text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100"
-									onclick={(e) => {
-										e.stopPropagation();
-										handleDeleteUrl(savedUrl.id);
-									}}
-									disabled={isDeleting === savedUrl.id}
-									title="Delete URL"
-									aria-label="Delete URL"
-								>
-									<svg
-										xmlns="http://www.w3.org/2000/svg"
-										width="18"
-										height="18"
-										viewBox="0 0 24 24"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<polyline points="3 6 5 6 21 6"/>
-										<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-										<line x1="10" y1="11" x2="10" y2="17"/>
-										<line x1="14" y1="11" x2="14" y2="17"/>
-									</svg>
-								</button>
-								<span class="text-xs font-medium text-zinc-400 uppercase tracking-widest">
-									{new Date(savedUrl.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-								</span>
-								<h2 class="text-base font-semibold tracking-tight mt-2 mb-2 group-hover:text-zinc-600 transition-colors line-clamp-1">
-									{savedUrl.url.replace(/^https?:\/\//, '').split('/')[0]}
-								</h2>
-								{#if savedUrl.hasBlogPost}
-									<p class="text-zinc-500 text-xs font-light leading-relaxed line-clamp-2 flex-grow">
-										{savedUrl.latestBlogPost?.title || 'Blog post generated'}
-									</p>
-								{/if}
-								<div class="mt-4 flex items-center gap-2">
-									{#if savedUrl.hasBlogPost && savedUrl.latestBlogPost}
-										<button
-											class="text-xs font-medium text-zinc-400 group-hover:text-zinc-900 transition-colors flex items-center gap-1"
-											onclick={() => openEditor(
-												savedUrl.latestBlogPost!.id,
-												savedUrl.latestBlogPost!.title,
-												savedUrl.latestBlogPost!.content,
-												savedUrl.url
-											)}
-										>
-											<span>Edit</span>
-											<span class="iconify" data-icon="mdi:pencil"></span>
-										</button>
-										<span class="text-zinc-300">|</span>
-									{/if}
-									<button
-										class="text-xs font-medium text-zinc-400 group-hover:text-zinc-900 transition-colors flex items-center gap-1"
-										onclick={() => openGenerateModal(savedUrl.id, savedUrl.url)}
-									>
-										<span>{savedUrl.hasBlogPost ? 'Regenerate' : 'Generate'}</span>
-										<span class="iconify" data-icon="mdi:refresh"></span>
-									</button>
-								</div>
-							</article>
+							<UrlCard
+								savedUrl={savedUrl}
+								onEdit={(blogPostId, title, content, url) => openEditor(blogPostId, title, content, url)}
+								onRegenerate={(urlId, url) => openGenerateModal(urlId, url)}
+								onDelete={handleDeleteUrl}
+								isDeleting={isDeleting === savedUrl.id}
+							/>
 						{/each}
 					</div>
 				{:else}
-					<div class="flex-1 flex items-center justify-center">
-						<div class="text-center py-12 px-4">
-							<div class="w-16 h-16 bg-zinc-100 rounded-xl mx-auto mb-4 flex items-center justify-center">
-								<span class="iconify text-3xl text-zinc-400" data-icon="mdi:link-variant"></span>
-							</div>
-							<p class="text-zinc-500 mb-4">No saved URLs yet</p>
-							<a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-zinc-900 hover:text-zinc-600 transition-colors">
-								<span>Save your first URL</span>
-								<span class="iconify" data-icon="mdi:arrow-right"></span>
-							</a>
-						</div>
-					</div>
-				{/if}
+									<EmptyState
+										message="No saved URLs yet"
+										actionText="Save your first URL"
+										actionHref="/"
+									/>
+								{/if}
 			</div>
 		</section>
 	</main>
@@ -364,10 +269,3 @@
 	onclose={closeModal}
 	onsubmit={handleGenerateBlog}
 />
-
-<style>
-	.glass-panel {
-		background: rgba(255, 255, 255, 0.8);
-		backdrop-filter: blur(12px);
-	}
-</style>

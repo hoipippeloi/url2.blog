@@ -3,6 +3,10 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import BlogEditor from '$lib/components/BlogEditor.svelte';
 	import Header from '$lib/components/Header.svelte';
+	import Alert from '$lib/components/Alert.svelte';
+	import UrlInputForm from '$lib/components/UrlInputForm.svelte';
+	import ClipboardModal from '$lib/components/ClipboardModal.svelte';
+	import GeneratingModal from '$lib/components/GeneratingModal.svelte';
 	import { Files } from '@lucide/svelte';
 
 	// Modal state
@@ -15,8 +19,6 @@
 	// Clipboard modal state
 	let clipboardModalOpen = $state(false);
 	let clipboardModalMessage = $state<string>('');
-
-
 
 	// Editor state
 	let showEditor = $state(false);
@@ -38,8 +40,14 @@
 		}
 	});
 
-
-
+	$effect(() => {
+		if (successMessage) {
+			const timer = setTimeout(() => {
+				successMessage = null;
+			}, 3000);
+			return () => clearTimeout(timer);
+		}
+	});
 
 	// Auto-paste from clipboard on page load if URL starts with http
 	$effect(() => {
@@ -55,15 +63,6 @@
 			}
 		}
 		checkClipboard();
-	});
-
-	$effect(() => {
-		if (successMessage) {
-			const timer = setTimeout(() => {
-				successMessage = null;
-			}, 3000);
-			return () => clearTimeout(timer);
-		}
 	});
 
 	function openGenerateModal(urlId: string | null, url: string) {
@@ -85,8 +84,6 @@
 		editorSavedUrl = url;
 		showEditor = true;
 	}
-
-
 
 	async function handlePasteFromClipboard() {
 		try {
@@ -180,77 +177,14 @@
 	<div class="flex flex-col items-center w-full max-w-2xl" style="margin-top: 20vh;">
 
 		{#if errorMessage}
-			<div class="alert alert-error" role="alert">
-				<svg
-					class="alert-icon"
-					xmlns="http://www.w3.org/2000/svg"
-					width="20"
-					height="20"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="12" cy="12" r="10" />
-					<line x1="12" y1="8" x2="12" y2="12" />
-					<line x1="12" y1="16" x2="12.01" y2="16" />
-				</svg>
-				<div class="alert-content">
-					<p class="alert-title">Error</p>
-					<p class="alert-message">{errorMessage}</p>
-				</div>
-				<button class="btn btn-outline btn-sm" onclick={() => errorMessage = null}>
-					Dismiss
-				</button>
-			</div>
+			<Alert type="error" message={errorMessage} title="Error" onDismiss={() => errorMessage = null} />
 		{/if}
 
 		{#if successMessage}
-			<div class="alert alert-success" role="alert">
-				<svg
-					class="alert-icon"
-					xmlns="http://www.w3.org/2000/svg"
-					width="20"
-					height="20"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<polyline points="20 6 9 17 4 12" />
-				</svg>
-				<div class="alert-content">
-					<p class="alert-message">{successMessage}</p>
-				</div>
-			</div>
+			<Alert type="success" message={successMessage} />
 		{/if}
 
-		{#if isGenerating}
-			<div class="modal-overlay open">
-				<div class="modal">
-					<div class="modal-body">
-						<div class="space-y-4">
-							<h3 class="modal-title">Generating your blog post...</h3>
-							<div class="progress-bar-container">
-								<div class="progress-track">
-									<div
-										class="progress-fill"
-										style="width: 100%; animation: progress-indeterminate 1.5s infinite;"
-									></div>
-								</div>
-							</div>
-							<p class="text-center text-[var(--fg-muted)]">
-								This may take up to 30 seconds
-							</p>
-						</div>
-					</div>
-				</div>
-			</div>
-		{/if}
+		<GeneratingModal open={isGenerating} />
 
 		{#if showEditor && editorBlogPostId}
 			<div class="editor-wrapper w-full max-w-4xl mx-auto mt-8">
@@ -295,87 +229,18 @@
 			</div>
 		{:else}
 			<section class="container text-center">
-				<form method="POST" action="?/saveUrl" class="space-y-4" onsubmit={(e) => {
-					e.preventDefault();
-					const formData = new FormData(e.currentTarget);
-					if (urlInputValue) {
-						formData.set('url', urlInputValue);
-					}
-					handleSaveUrl(formData);
-				}}>
-					<div class="input-group">
-						<label class="input-label" for="url-input">
-							Paste your URL
-						</label>
-						<div class="relative">
-							<input
-								id="url-input"
-								type="url"
-								name="url"
-								class="input-field pr-12"
-								placeholder="https://example.com"
-								autocomplete="off"
-								required
-								bind:value={urlInputValue}
-							/>
-							<button
-								type="button"
-								class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md hover:bg-[var(--accent-light)] transition-colors cursor-pointer"
-								onclick={handlePasteFromClipboard}
-								title="Paste from clipboard"
-								aria-label="Paste from clipboard"
-							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="18"
-									height="18"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								>
-									<rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-									<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-								</svg>
-							</button>
-						</div>
-					</div>
+				<UrlInputForm
+					urlValue={urlInputValue}
+					onUrlChange={(url) => urlInputValue = url}
+					onPaste={handlePasteFromClipboard}
+					onSubmit={handleSaveUrl}
+				/>
 
-					<button type="submit" class="btn btn-primary mt-2">
-						Save
-					</button>
-				</form>
-
-				{#if clipboardModalOpen}
-					<div class="modal-overlay open modal-overlay-top" onclick={closeClipboardModal}>
-						<div class="small-modal" onclick={(e) => e.stopPropagation()}>
-							<div class="small-modal-body">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									width="24"
-									height="24"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									class="small-modal-icon"
-								>
-									<circle cx="12" cy="12" r="10" />
-									<line x1="12" y1="8" x2="12" y2="12" />
-									<line x1="12" y1="16" x2="12.01" y2="16" />
-								</svg>
-								<p class="small-modal-message">{clipboardModalMessage}</p>
-							</div>
-							<button class="btn btn-sm btn-outline" onclick={closeClipboardModal}>
-								OK
-							</button>
-						</div>
-					</div>
-				{/if}
+				<ClipboardModal
+					open={clipboardModalOpen}
+					message={clipboardModalMessage}
+					onclose={closeClipboardModal}
+				/>
 
 				<div class="flex justify-center mt-4">
 					<a href="/urls" class="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors">
@@ -395,17 +260,6 @@
 </main>
 
 <style>
-	@keyframes progress-indeterminate {
-		0% {
-			margin-left: -100%;
-			width: 100%;
-		}
-		100% {
-			margin-left: 100%;
-			width: 100%;
-		}
-	}
-
 	.editor-wrapper {
 		background: var(--bg);
 		border-radius: var(--radius-lg);
@@ -416,46 +270,4 @@
 		border-bottom: 1px solid var(--border);
 		padding-bottom: 1rem;
 	}
-
-	.small-modal {
-		background: var(--bg-elevated);
-		border: 1px solid var(--border);
-		border-radius: 16px;
-		max-width: 320px;
-		width: 100%;
-		padding: 1.5rem;
-		transform: scale(0.95) translateY(20px);
-		transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-		text-align: center;
-	}
-
-	.modal-overlay.open .small-modal {
-		transform: scale(1) translateY(0);
-	}
-
-	.modal-overlay-top {
-		align-items: flex-start;
-		padding-top: 15vh;
-	}
-
-	.small-modal-body {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-		margin-bottom: 1rem;
-	}
-
-	.small-modal-icon {
-		color: var(--error);
-	}
-
-	.small-modal-message {
-		font-size: 0.9375rem;
-		color: var(--fg);
-		line-height: 1.5;
-		margin: 0;
-	}
-
-
 </style>
