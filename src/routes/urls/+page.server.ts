@@ -22,6 +22,7 @@ export const load = async () => {
 		savedUrls: savedUrls.map((url) => ({
 			id: url.id,
 			url: url.url,
+			title: url.title,
 			createdAt: url.createdAt,
 			hasBlogPost: url.blogPosts.length > 0,
 			latestBlogPost: url.blogPosts[0],

@@ -57,7 +57,7 @@
 	}
 </script>
 
-<a href="/urls/{savedUrl.id}" class="feed-card">
+<a href="/blog/{savedUrl.id}" class="feed-card">
 	<span class="date-label">{formatDate(savedUrl.createdAt)}</span>
 	<h2 class="card-headline">{deriveTitle(savedUrl)}</h2>
 	<p class="card-excerpt">{deriveExcerpt(savedUrl)}</p>

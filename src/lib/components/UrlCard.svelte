@@ -87,7 +87,11 @@
 		{savedUrl.url.replace(/^https?:\/\//, '').split('/')[0]}
 	</h2>
 
-	{#if savedUrl.hasBlogPost}
+	{#if savedUrl.title}
+		<p class="text-zinc-500 text-xs font-light leading-relaxed mb-2 line-clamp-2">
+			{savedUrl.title}
+		</p>
+	{:else if savedUrl.hasBlogPost}
 		<p class="text-zinc-500 text-xs font-light leading-relaxed grow line-clamp-2">
 			{savedUrl.latestBlogPost?.title || 'Blog post generated'}
 		</p>

@@ -23,19 +23,30 @@
 	let formContent = $state('');
 	let formTitle = $state('');
 	let hasUserEdited = $state(false);
+	let contentInitialized = $state(false);
+	let titleInitialized = $state(false);
+
+	// Initialize content from props when component mounts or props change
+	$effect(() => {
+		if (!contentInitialized && content) {
+			formContent = content;
+			contentInitialized = true;
+		}
+	});
+
+	// Initialize title from props when component mounts or props change
+	$effect(() => {
+		if (!titleInitialized && title) {
+			formTitle = title;
+			titleInitialized = true;
+		}
+	});
 
 	// Sync content from parent while generating and user hasn't edited
 	$effect(() => {
 		// Sync content while generating (streaming content)
 		if (isGenerating && !hasUserEdited) {
 			formContent = content;
-		}
-	});
-
-	// Sync title from parent if available and user hasn't edited
-	$effect(() => {
-		if (!hasUserEdited && title) {
-			formTitle = title;
 		}
 	});
 

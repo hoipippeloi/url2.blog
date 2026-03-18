@@ -9,7 +9,7 @@
 	import GeneratingModal from '$lib/components/GeneratingModal.svelte';
 	import Button from '$lib/components/Button.svelte';
 	import CategorySelect from '$lib/components/CategorySelect.svelte';
-	import { ArrowBigLeftDash, ExternalLink, Calendar, Link, NotebookPen, FileText, ReceiptText, X } from '@lucide/svelte';
+	import { ArrowBigLeftDash, ExternalLink, Calendar, Link, NotebookPen, FileText, ReceiptText, X, Paperclip, Library } from '@lucide/svelte';
 
 	interface BlogPost {
 		id: string;
@@ -56,6 +56,8 @@
 
 	let markdownModalOpen = $state(false);
 
+	let blogPostsDrawerOpen = $state(false);
+
 	let errorMessage = $state<string | null>(null);
 	let successMessage = $state<string | null>(null);
 	let isSavingBlogPost = $state(false);
@@ -98,6 +100,7 @@
 	}
 
 	function openEditor(blogPostId: string, title: string, content: string, url: string) {
+		console.log('openEditor called:', { blogPostId, title, contentLength: content?.length, url });
 		editorBlogPostId = blogPostId;
 		editorTitle = title;
 		editorContent = content;
@@ -118,6 +121,14 @@
 
 	function closeMarkdownModal() {
 		markdownModalOpen = false;
+	}
+
+	function openBlogPostsDrawer() {
+		blogPostsDrawerOpen = true;
+	}
+
+	function closeBlogPostsDrawer() {
+		blogPostsDrawerOpen = false;
 	}
 
 	async function handleGenerateBlog(formData: FormData) {
@@ -386,7 +397,13 @@
 						</a>
 						{#if data.savedUrl.markdownContent}
 							<button onclick={openMarkdownModal} class="btn btn-outline" aria-label="View stored markdown">
-								<FileText size={16} />
+								<Paperclip size={16} />
+							</button>
+						{/if}
+						{#if data.savedUrl.blogPosts.length > 0}
+							<button onclick={openBlogPostsDrawer} class="btn btn-outline relative" aria-label="View all blog posts">
+								<Library size={16} />
+								<span class="badge">{data.savedUrl.blogPosts.length}</span>
 							</button>
 						{/if}
 					</div>
@@ -414,56 +431,15 @@
 					{/if}
 					<!-- Divider -->
 					<div class="border-t border-[var(--border)] mt-6"></div>
-					{#if data.savedUrl.blogPosts.length === 0}
+					<div class="mt-10 flex justify-center" style="min-height: 54px;">
 						<div class="mt-10 flex justify-center">
-							<a href="/urls/{data.savedUrl.id}/generate" class="btn btn-primary" aria-label="Generate blog post">
+							<a href="/urls/{data.savedUrl.id}/generate" class="btn btn-primary btn-no-move" aria-label="Generate blog post">
 								<NotebookPen size={20} />
 							</a>
 						</div>
-					{/if}
 				</div>
 			</div>
 		</div>
-
-		<!-- Blog Posts Grid -->
-		{#if data.savedUrl.blogPosts.length > 0}
-			<div class="bg-[var(--bg)] py-16">
-				<div class="mx-auto max-w-[2560px] px-6 lg:px-8">
-					<div class="mx-auto max-w-2xl lg:text-center mb-16">
-						<h2 class="text-3xl font-semibold tracking-tight text-[var(--fg)]">
-							Blog Posts ({data.savedUrl.blogPosts.length})
-						</h2>
-						<p class="mt-4 text-lg/8 text-[var(--fg-muted)]">
-							Generated content from your saved URL
-						</p>
-					</div>
-					<div class="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-						<dl class="grid max-w-xl grid-cols-1 gap-x-8 gap-y-16 lg:max-w-none lg:grid-cols-3">
-							{#each data.savedUrl.blogPosts as blogPost}
-								<div class="flex flex-col">
-									<dt class="flex items-center gap-x-3 text-base/7 font-semibold text-[var(--fg)]">
-										<svg viewBox="0 0 20 20" fill="currentColor" class="size-5 flex-none text-[var(--accent)]">
-											<path d="M5.5 17a4.5 4.5 0 0 1-1.44-8.765 4.5 4.5 0 0 1 8.302-3.046 3.5 3.5 0 0 1 4.504 4.272A4 4 0 0 1 15 17H5.5Zm3.75-2.75a.75.75 0 0 0 1.5 0V9.66l1.95 2.1a.75.75 0 1 0 1.1-1.02l-3.25-3.5a.75.75 0 0 0-1.1 0l-3.25 3.5a.75.75 0 1 0 1.1 1.02l1.95-2.1v4.59Z" clip-rule="evenodd" fill-rule="evenodd" />
-										</svg>
-										{blogPost.title}
-									</dt>
-									<dd class="mt-4 flex flex-auto flex-col text-base/7 text-[var(--fg-muted)]">
-										<p class="flex-auto">
-											{blogPost.content.replace(/---[\s\S]*?---/, '').trim().substring(0, 150)}...
-										</p>
-										<p class="mt-6">
-											<button onclick={() => openEditor(blogPost.id, blogPost.title, blogPost.content, data.savedUrl.url)} class="text-sm/6 font-semibold text-[var(--accent)] hover:text-[var(--fg)]">
-												Edit post <span aria-hidden="true">→</span>
-											</button>
-										</p>
-									</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				</div>
-			</div>
-		{/if}
 	</main>
 {/if}
 
@@ -482,3 +458,199 @@
 	content={data.savedUrl.markdownContent || ''}
 	onclose={closeMarkdownModal}
 />
+
+<!-- Blog Posts Drawer -->
+{#if blogPostsDrawerOpen}
+	<div
+		class="drawer-backdrop"
+		class:open={blogPostsDrawerOpen}
+		onclick={closeBlogPostsDrawer}
+		onkeydown={(e) => e.key === 'Escape' && closeBlogPostsDrawer()}
+		role="button"
+		tabindex={blogPostsDrawerOpen ? 0 : -1}
+	>
+	</div>
+	<aside
+		class="drawer"
+		class:open={blogPostsDrawerOpen}
+	>
+		<div class="drawer-header">
+			<div class="drawer-title">
+				<Library size={20} />
+				<span>Blog Posts ({data.savedUrl.blogPosts.length})</span>
+			</div>
+			<button
+				class="close-btn"
+				onclick={closeBlogPostsDrawer}
+				aria-label="Close drawer"
+			>
+				<X size={20} />
+			</button>
+		</div>
+		<div class="drawer-content">
+			{#each data.savedUrl.blogPosts as blogPost}
+				<div class="blog-post-card">
+					<h3 class="blog-post-title">{blogPost.title}</h3>
+					<p class="blog-post-preview">
+						{blogPost.content.replace(/---[\s\S]*?---/, '').trim().substring(0, 200)}...
+					</p>
+					<div class="blog-post-actions">
+						<button onclick={() => {
+							console.log('Edit button clicked for blogPost:', { id: blogPost.id, title: blogPost.title, contentLength: blogPost.content?.length });
+							closeBlogPostsDrawer();
+							openEditor(blogPost.id, blogPost.title, blogPost.content, data.savedUrl.url);
+						}} class="btn btn-sm btn-outline">
+							Edit Post
+						</button>
+						<span class="blog-post-date">
+							{new Date(blogPost.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+						</span>
+					</div>
+				</div>
+			{/each}
+		</div>
+	</aside>
+{/if}
+
+<style>
+	.drawer-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		opacity: 0;
+		visibility: hidden;
+		transition: opacity 0.2s, visibility 0.2s;
+		z-index: 40;
+	}
+
+	.drawer-backdrop.open {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	.drawer {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: 50vw;
+		height: 100vh;
+		background: white;
+		border-left: 1px solid #e4e4e7;
+		transform: translateX(100%);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		z-index: 50;
+		display: flex;
+		flex-direction: column;
+		box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+	}
+
+	.drawer.open {
+		transform: translateX(0);
+	}
+
+	@media (max-width: 768px) {
+		.drawer {
+			width: 100vw;
+		}
+	}
+
+	.drawer-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem;
+		border-bottom: 1px solid #e4e4e7;
+		background: #fafafa;
+	}
+
+	.drawer-title {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-weight: 600;
+		color: #18181b;
+	}
+
+	.close-btn {
+		padding: 0.5rem;
+		border-radius: 0.5rem;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+		color: #71717a;
+		transition: background 0.2s;
+	}
+
+	.close-btn:hover {
+		background: #e4e4e7;
+	}
+
+	.drawer-content {
+		flex: 1;
+		overflow-y: auto;
+		padding: 1rem;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.blog-post-card {
+		padding: 1rem;
+		border: 1px solid #e4e4e7;
+		border-radius: 0.5rem;
+		background: white;
+		transition: box-shadow 0.2s;
+	}
+
+	.blog-post-card:hover {
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	}
+
+	.blog-post-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: #18181b;
+		margin-bottom: 0.5rem;
+		line-height: 1.4;
+	}
+
+	.blog-post-preview {
+		font-size: 0.875rem;
+		color: #71717a;
+		line-height: 1.6;
+		margin-bottom: 0.75rem;
+	}
+
+	.blog-post-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
+
+	.blog-post-date {
+		font-size: 0.75rem;
+		color: #a1a1aa;
+	}
+
+	.badge {
+		position: absolute;
+		top: -0.4375rem;
+		right: -0.3125rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: white;
+		background: var(--accent);
+		border-radius: 0.75rem;
+		padding: 0.25rem 0.5rem;
+		min-width: 1.25rem;
+		height: 1.25rem;
+	}
+
+	.btn-no-move:hover {
+		transform: none;
+	}
+</style>

@@ -244,10 +244,6 @@
 						{#each data.savedUrls as savedUrl}
 							<UrlCard
 								savedUrl={savedUrl}
-								onEdit={(blogPostId, title, content, url) => openEditor(blogPostId, title, content, url)}
-								onRegenerate={(urlId, url) => openGenerateModal(urlId, url)}
-								onDelete={handleDeleteUrl}
-								isDeleting={isDeleting === savedUrl.id}
 							/>
 						{/each}
 					</div>
